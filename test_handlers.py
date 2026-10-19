@@ -28,5 +28,5 @@ class Handlers(unittest.TestCase):
    self.assertEqual(call('/api/pending',cookie=admin)[1],[])
    with m.db() as c:
     self.assertEqual(c.execute('SELECT count(*) FROM secrets').fetchone()[0],1)
-    self.assertEqual([r[1] for r in c.execute('pragma table_info(secrets)')],['id','name','body','created_at','approved'])
+    self.assertEqual([r[1] for r in c.execute('pragma table_info(secrets)')],['id','name','body','created_at','approved','published_at'])
 if __name__=='__main__':unittest.main()

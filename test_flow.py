@@ -32,7 +32,7 @@ class Flow(unittest.TestCase):
     self.assertEqual(call(admin,'pending'),[])
     with sqlite3.connect(data+'/secrets.sqlite3') as db:
      self.assertEqual(db.execute('select count(*) from secrets').fetchone()[0],1)
-     self.assertEqual([r[1] for r in db.execute('pragma table_info(secrets)')],['id','name','body','created_at','approved'])
+     self.assertEqual([r[1] for r in db.execute('pragma table_info(secrets)')],['id','name','body','created_at','approved','published_at'])
     call(reader,'logout',{})
     denied(reader,'secrets')
    finally:
