@@ -1,7 +1,8 @@
-import os, json, sqlite3, secrets, hashlib, hmac, time
+import os, json, sqlite3, secrets, hashlib, hmac, time, re
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.parse import urlsplit, parse_qs
 
 ROOT = Path(__file__).parent
 DATA = Path(os.environ.get('DATA_DIR', str(ROOT / 'data')))
@@ -11,6 +12,52 @@ ADMIN = os.environ['ADMIN_PASSWORD']
 KEY = os.environ['SESSION_SECRET'].encode()
 ORIGIN = os.environ.get('ORIGIN', 'https://hemlis.andreas.quest')
 SECURE = os.environ.get('COOKIE_SECURE', '1') == '1'
+
+class MusicUnavailable(Exception):
+    pass
+
+def random_music():
+    """Read only the imported YouTube Likes source; never contact YouTube here."""
+    try:
+        path = Path(os.environ.get('MUSIC_CATALOG_PATH', '/music/youtube-likes.json'))
+        with path.open('rb') as source:
+            raw = source.read(2 * 1024 * 1024 + 1)
+        if len(raw) > 2 * 1024 * 1024:
+            raise ValueError('Source too large')
+        source = json.loads(raw)
+        tracks = source.get('tracks') if isinstance(source, dict) else None
+        if not isinstance(tracks, list) or len(tracks) > 5000:
+            raise ValueError('Invalid source')
+        candidates = {}
+        for track in tracks:
+            if not isinstance(track, dict) or not isinstance(track.get('links'), list):
+                continue
+            links = [link for link in track['links'] if isinstance(link, dict)]
+            artists = []
+            for link in links:
+                href, name = link.get('href'), link.get('name')
+                if isinstance(href, str) and isinstance(name, str) and href.startswith('channel/'):
+                    artists.append(name.strip()[:160])
+            for link in links:
+                href, title = link.get('href'), link.get('name')
+                if not isinstance(href, str) or not isinstance(title, str) or not title.strip():
+                    continue
+                parsed = urlsplit(href)
+                if parsed.netloc and parsed.netloc not in ('www.youtube.com', 'youtube.com', 'music.youtube.com'):
+                    continue
+                if parsed.scheme not in ('', 'https') or parsed.path.lstrip('/') != 'watch':
+                    continue
+                query = parse_qs(parsed.query)
+                video_id = query.get('v', [''])[0]
+                if query.get('list') != ['LM'] or not re.fullmatch(r'[A-Za-z0-9_-]{11}', video_id):
+                    continue
+                candidates[video_id] = {'video_id': video_id, 'title': title.strip()[:240],
+                    'artist': ', '.join(dict.fromkeys(artists))[:240], 'source': 'Musikhjärnans YouTube-favoriter'}
+        if not candidates:
+            raise ValueError('No liked videos')
+        return secrets.choice(list(candidates.values()))
+    except (OSError, ValueError, TypeError, RecursionError):
+        raise MusicUnavailable() from None
 def db():
     c = sqlite3.connect(DATA / 'secrets.sqlite3')
     c.row_factory = sqlite3.Row
@@ -26,7 +73,7 @@ class Handler(BaseHTTPRequestHandler):
         payload = value.encode() if html else json.dumps(value, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'text/html; charset=utf-8' if html else 'application/json; charset=utf-8')
-        for k,v in {'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", 'Content-Length':str(len(payload))}.items(): self.send_header(k,v)
+        for k,v in {'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", 'Content-Length':str(len(payload))}.items(): self.send_header(k,v)
         if cookie: self.send_header('Set-Cookie', cookie)
         self.end_headers()
         self.wfile.write(payload)
@@ -47,9 +94,12 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/', '/anonymitet', '/admin'):
             return self.reply(200,(ROOT/'index.html').read_text(),html=True)
         if path == '/api/session': return self.reply(200,{'role':self.role()})
-        if path not in ('/api/secrets','/api/pending'): return self.reply(404,{'error':'Finns inte.'})
+        if path not in ('/api/secrets','/api/pending','/api/music'): return self.reply(404,{'error':'Finns inte.'})
         role = self.role()
         if not role: return self.reply(401,{'error':'Lås upp först.'})
+        if path == '/api/music':
+            try: return self.reply(200, random_music())
+            except MusicUnavailable: return self.reply(503, {'error':'Musikkällan är inte tillgänglig just nu.'})
         if path == '/api/pending' and role != 'admin': return self.reply(403,{'error':'Endast andreas.'})
         with db() as c:
             rows = c.execute('SELECT id,name,body,created_at FROM secrets WHERE approved=? ORDER BY created_at DESC LIMIT 500',(0 if path=='/api/pending' else 1,)).fetchall()
