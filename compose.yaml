@@ -1,0 +1,28 @@
+services:
+  hemlismaskinen:
+    image: python:3.12-alpine
+    container_name: hemlismaskinen
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "server.py"]
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      ORIGIN: https://hemlis.andreas.quest
+      COOKIE_SECURE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./server.py:/app/server.py:ro
+      - ./index.html:/app/index.html:ro
+      - ./data:/data
+    ports:
+      - "127.0.0.1:18843:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 64
+    logging:
+      driver: none
