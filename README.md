@@ -42,6 +42,7 @@ with os.fdopen(fd, 'w') as file:
 PY
 mkdir -p data
 chmod 700 data
+sudo chown "${HEMLIS_UID:-10001}:${HEMLIS_GID:-10001}" data
 docker compose up -d
 ```
 
@@ -53,7 +54,7 @@ För en lokal HTTP-instans kan `ORIGIN`, `COOKIE_SECURE=0`, `DATA_DIR` och `PORT
 
 Efter inloggning kan besökaren slumpa en låt från Musikhjärnans importerade YouTube-lista ”Musik jag gillar”. Ingen spelare, förhandsanslutning eller kontakt med YouTube görs innan besökaren trycker på knappen. Spelaren startas med YouTubes egna play-knapp. Ny lottning byter video; ”Stäng spelaren” tar bort inbäddningen.
 
-`MUSIC_SOURCE_FILE` i den privata `.env` pekar på Musikhjärnans `youtube-seed.json` på värden. Compose monterar bara den filen skrivskyddad, aldrig Musikhjärnans konfiguration, databas eller kontouppgifter. Appens `MUSIC_CATALOG_PATH` anger filens sökväg inne i containern. Om filen är otillgänglig eller saknar giltiga favoriter returneras ett faktiskt fel; inga låtar hittas på som reserv.
+`MUSIC_SOURCE_FILE` i den privata `.env` pekar på Musikhjärnans `youtube-seed.json` på värden. Sätt `HEMLIS_UID` och `HEMLIS_GID` i `.env` till den icke-root-identitet som får läsa källfilen och äger appens datamapp. Appkod ska vara läsbar för den identiteten. Gör inte favoritfilen allmänt läsbar för att lösa ett behörighetsfel. Compose monterar bara den filen skrivskyddad, aldrig Musikhjärnans konfiguration, databas eller kontouppgifter. Appens `MUSIC_CATALOG_PATH` anger filens sökväg inne i containern. Om filen är otillgänglig eller saknar giltiga favoriter returneras ett faktiskt fel; inga låtar hittas på som reserv.
 
 Formatet är ett JSON-objekt med `tracks`, där varje post har en `links`-lista med `href` och `name`. Endast giltiga YouTube-video-ID:n i `watch?v=...&list=LM` används. Kanalnamn visas som källans namnuppgifter, inte som en verifierad artistkoppling. Uppdatering av den importerade källfilen syns vid nästa lottning. Urvalet är en importerad favoritlista, inte en direktkoppling till användarens aktuella YouTube-konto. `music.example.json` är medvetet tom; riktiga favoritlistor publiceras inte i repot.
 
