@@ -29,7 +29,7 @@ These are observations from source inspection, not a completed exploit assessmen
 - **Third-party playback:** privacy-enhanced embedding is not anonymous playback. YouTube can observe connection information after opt-in and may restrict playback, use cookies or other storage, or reject embedding. Source imports may be incomplete or stale, and channel names are not guaranteed artist identities. The app does not fetch or proxy video content.
 - **Privacy:** aliases, exact timestamps, language, and content can identify someone. No IP column does not establish total anonymity. The operator can read content, and proxy/CDN/ISP/DNS metadata may exist. No review of infrastructure logging, analytics, retention or backups is established by this source release.
 - **Deletion:** rejecting a post performs SQL DELETE against the active database. It does not guarantee forensic erasure from SQLite pages/journals, filesystem snapshots, or backups. There is no retention schedule or interface to remove approved posts.
-- **Runtime and supply chain:** the supplied container profile does not set a non-root user, and its Python image uses a mutable tag. The profile requests a PID cap, but some target NAS kernels discard that cap. No end-to-end browser QA, adversarial load test, or dependency/image security audit is established.
+- **Runtime and supply chain:** the container uses an explicitly configured non-root UID/GID, but the host must grant that identity access to the app data and private read-only music source. Its Python image uses a mutable tag. The profile requests a PID cap, but some target NAS kernels discard that cap. No end-to-end browser QA, adversarial load test, or dependency/image security audit is established.
 
 ## Existing checks and their limits
 

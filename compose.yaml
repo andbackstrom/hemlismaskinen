@@ -3,6 +3,7 @@ services:
     image: python:3.12-alpine
     container_name: hemlismaskinen
     restart: unless-stopped
+    user: "${HEMLIS_UID:-10001}:${HEMLIS_GID:-10001}"
     working_dir: /app
     command: ["python", "server.py"]
     env_file: .env

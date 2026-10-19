@@ -36,3 +36,7 @@ The revision following the initial import changes the administrator login copy, 
 Local verification: all five Python tests passed. JavaScript syntax was checked with Node. An isolated DOM simulation checked admin copy, initial/login animation and skip, reduced motion, no external player request before opt-in, safe track metadata rendering, and iframe removal on stop/logout. This is not a full-browser rendering or real YouTube playback test; playback availability and third-party restrictions depend on YouTube and the browser.
 
 Deployment is separate from source publication. The initial checksums above are historical, not the current checksums after applying this feature.
+
+### Runtime identity follow-up
+
+The optional music source is private and owned by the NAS account. The container therefore runs as a configured non-root UID/GID with ownership of only this app's data and read access to the existing music capture. App source is public/readable; the original favorite file's ownership and mode are not widened. The updated `compose.yaml` SHA-256 is `eae0c386793e9edc64c9d03f1f3fb1f6d413456e69659c9c624b7099b6d4582c`. Python and HTML hashes above are unchanged.
