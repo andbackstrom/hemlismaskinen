@@ -48,4 +48,4 @@ This revision replaces character rain with four fictional, glowing phrases selec
 Verification on synthetic data: ten Python tests pass, including exact expiry boundaries, approval versus original date, repeated startup migration, archive role checks and pagination, and republish preserving original fields. DOM simulation checks phrase uniqueness, approximately three-second timing and archive/republish interactions, plus previous opt-in music behavior. This does not certify real-browser rendering.
 
 - `server.py` SHA-256: `4b187f831a6e7d67696507efdeb4e0efb6b652d99a50c92aa2a52c15da8f0f2c`
-- `index.html` SHA-256: `9d4501250171c860bdb2ad799d3732288c0af518473e4d98ec4c7a2978e471b6`
+- `index.html` SHA-256: `cdff2be525269ce7d553753b24d957a1db6e2a13e7a33a47e98ded994ae41d45`
