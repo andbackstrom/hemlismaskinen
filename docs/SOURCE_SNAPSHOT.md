@@ -40,3 +40,12 @@ Deployment is separate from source publication. The initial checksums above are 
 ### Runtime identity follow-up
 
 The optional music source is private and owned by the NAS account. The container therefore runs as a configured non-root UID/GID with ownership of only this app's data and read access to the existing music capture. App source is public/readable; the original favorite file's ownership and mode are not widened. The updated `compose.yaml` SHA-256 is `eae0c386793e9edc64c9d03f1f3fb1f6d413456e69659c9c624b7099b6d4582c`. Python and HTML hashes above are unchanged.
+
+### Glowing phrases and 30-day publication archive
+
+This revision replaces character rain with four fictional, glowing phrases selected from a pool of 40. Normal presentation lasts three seconds; skip/reduced-motion behavior is preserved. A transactional additive migration introduces `published_at`. Server-side visibility checks expire a publication after 30 days, with admin-only archive pagination and an explicit, authorized republish action. Original submission fields remain intact.
+
+Verification on synthetic data: ten Python tests pass, including exact expiry boundaries, approval versus original date, repeated startup migration, archive role checks and pagination, and republish preserving original fields. DOM simulation checks phrase uniqueness, approximately three-second timing and archive/republish interactions, plus previous opt-in music behavior. This does not certify real-browser rendering.
+
+- `server.py` SHA-256: `4b187f831a6e7d67696507efdeb4e0efb6b652d99a50c92aa2a52c15da8f0f2c`
+- `index.html` SHA-256: `cdff2be525269ce7d553753b24d957a1db6e2a13e7a33a47e98ded994ae41d45`

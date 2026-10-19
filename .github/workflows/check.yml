@@ -14,9 +14,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check Python syntax
-        run: python3 -m py_compile server.py test_handlers.py test_flow.py test_music.py
+        run: python3 -m py_compile server.py test_handlers.py test_flow.py test_music.py test_archive.py
       - name: Run isolated authorization and HTTP tests
-        run: python3 -m unittest -v test_handlers.py test_flow.py test_music.py
+        run: python3 -m unittest -v test_handlers.py test_flow.py test_music.py test_archive.py
       - name: Validate container configuration with synthetic values
         run: |
           printf 'BOARD_PASSWORD=ci-board-only\nADMIN_PASSWORD=ci-admin-only\nSESSION_SECRET=ci-session-only\n' > .env

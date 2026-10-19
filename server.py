@@ -3,6 +3,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
+from datetime import datetime, timezone
 
 ROOT = Path(__file__).parent
 DATA = Path(os.environ.get('DATA_DIR', str(ROOT / 'data')))
@@ -62,8 +63,20 @@ def db():
     c = sqlite3.connect(DATA / 'secrets.sqlite3')
     c.row_factory = sqlite3.Row
     return c
+
+def utc_now():
+    return datetime.now(timezone.utc).isoformat()
+
+# A missing/invalid publication date is never considered publicly visible.
+EXPIRED = '(published_at IS NULL OR julianday(published_at) IS NULL OR julianday(published_at) <= julianday(?) - 30)'
+
 with db() as c:
+    c.execute('BEGIN IMMEDIATE')
     c.execute('CREATE TABLE IF NOT EXISTS secrets (id TEXT PRIMARY KEY, name TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, approved INTEGER NOT NULL DEFAULT 0)')
+    if 'published_at' not in {row['name'] for row in c.execute('PRAGMA table_info(secrets)')}:
+        c.execute('ALTER TABLE secrets ADD COLUMN published_at TEXT')
+        # Old versions kept no separate approval time. Preserve their known original date.
+        c.execute('UPDATE secrets SET published_at=created_at WHERE approved=1')
 os.chmod(DATA / 'secrets.sqlite3', 0o600)
 
 class Handler(BaseHTTPRequestHandler):
@@ -94,15 +107,24 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/', '/anonymitet', '/admin'):
             return self.reply(200,(ROOT/'index.html').read_text(),html=True)
         if path == '/api/session': return self.reply(200,{'role':self.role()})
-        if path not in ('/api/secrets','/api/pending','/api/music'): return self.reply(404,{'error':'Finns inte.'})
+        if path not in ('/api/secrets','/api/pending','/api/archive','/api/music'): return self.reply(404,{'error':'Finns inte.'})
         role = self.role()
         if not role: return self.reply(401,{'error':'Lås upp först.'})
         if path == '/api/music':
             try: return self.reply(200, random_music())
             except MusicUnavailable: return self.reply(503, {'error':'Musikkällan är inte tillgänglig just nu.'})
-        if path == '/api/pending' and role != 'admin': return self.reply(403,{'error':'Endast andreas.'})
+        if path in ('/api/pending','/api/archive') and role != 'admin': return self.reply(403,{'error':'Endast andreas.'})
         with db() as c:
-            rows = c.execute('SELECT id,name,body,created_at FROM secrets WHERE approved=? ORDER BY created_at DESC LIMIT 500',(0 if path=='/api/pending' else 1,)).fetchall()
+            fields = 'SELECT id,name,body,created_at FROM secrets '
+            if path == '/api/pending':
+                rows = c.execute(fields+'WHERE approved=0 ORDER BY created_at DESC LIMIT 500').fetchall()
+            elif path == '/api/archive':
+                offset = parse_qs(urlsplit(self.path).query).get('offset', ['0'])[0]
+                if not re.fullmatch(r'[0-9]{1,9}', offset):
+                    return self.reply(400, {'error':'Ogiltig arkivsida.'})
+                rows = c.execute(fields+'WHERE approved=1 AND '+EXPIRED+' ORDER BY created_at DESC,id DESC LIMIT 500 OFFSET ?', (utc_now(),int(offset))).fetchall()
+            else:
+                rows = c.execute(fields+'WHERE approved=1 AND julianday(published_at)>julianday(?) - 30 ORDER BY created_at DESC LIMIT 500', (utc_now(),)).fetchall()
         return self.reply(200,[dict(r) for r in rows])
     def do_POST(self):
         if self.headers.get('Origin') != ORIGIN: return self.reply(403,{'error':'Ogiltigt ursprung.'})
@@ -128,14 +150,20 @@ class Handler(BaseHTTPRequestHandler):
             name=data.get('name','').strip() if isinstance(data.get('name',''),str) else ''
             body=data.get('body','').strip() if isinstance(data.get('body',''),str) else ''
             if not 1<=len(body)<=2000 or len(name)>40: return self.reply(400,{'error':'Skriv 1–2000 tecken och ett alias på högst 40 tecken.'})
-            from datetime import datetime, timezone
-            with db() as c: c.execute('INSERT INTO secrets(id,name,body,created_at) VALUES(?,?,?,?)',(secrets.token_hex(16),name or 'Anonym',body,datetime.now(timezone.utc).isoformat()))
+            with db() as c: c.execute('INSERT INTO secrets(id,name,body,created_at) VALUES(?,?,?,?)',(secrets.token_hex(16),name or 'Anonym',body,utc_now()))
             return self.reply(201,{'ok':True})
         if self.path=='/api/moderate' and role=='admin':
-            if data.get('action') not in ('approve','reject'): return self.reply(400,{'error':'Ogiltigt val.'})
+            if data.get('action') not in ('approve','reject','republish'): return self.reply(400,{'error':'Ogiltigt val.'})
             with db() as c:
-                if data['action']=='approve': c.execute('UPDATE secrets SET approved=1 WHERE id=? AND approved=0',(str(data.get('id','')),))
-                else: c.execute('DELETE FROM secrets WHERE id=? AND approved=0',(str(data.get('id','')),))
+                if data['action']=='approve':
+                    result = c.execute('UPDATE secrets SET approved=1,published_at=? WHERE id=? AND approved=0',(utc_now(),str(data.get('id',''))))
+                elif data['action']=='republish':
+                    now = utc_now()
+                    result = c.execute('UPDATE secrets SET published_at=? WHERE id=? AND approved=1 AND '+EXPIRED,(now,str(data.get('id','')),now))
+                else:
+                    result = c.execute('DELETE FROM secrets WHERE id=? AND approved=0',(str(data.get('id','')),))
+                if result.rowcount != 1:
+                    return self.reply(409, {'error':'Hemlisen har redan hanterats. Uppdatera listan.'})
             return self.reply(200,{'ok':True})
         return self.reply(403,{'error':'Åtkomst nekad.'})
 

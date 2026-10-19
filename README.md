@@ -14,16 +14,26 @@ Appens Python- och HTML-filer ska motsvara den driftsatta versionen; kontrollsum
 
 ## Funktion
 
+Vid sidstart och inloggning glöder fyra slumpade, påhittade meningar fram ur ett urval på 40 under cirka tre sekunder. De hämtas inte från inskickade hemlisar. Animationen kan hoppas över och uteblir vid reducerad rörelse.
+
 Besökare låser upp boardet med ett gemensamt lösenord. Text och valfritt alias skickas till en modereringskö. Admin för kontot `andreas` kan godkänna eller rata en väntande post. Godkännande bevarar inskickningsdatum, alias och text. Inga besökarkonton eller avsändar-ID:n kopplas till posterna.
 
-Databasen innehåller `id`, `name`, `body`, `created_at` och `approved`. Appens gränssnitt har inga analysbibliotek eller externa frontendresurser. Den frivilliga musikknappen laddar däremot en extern YouTube-spelare efter ett uttryckligt klick. Åtkomstloggning är avstängd i appen och Docker-loggdrivern är `none`. Det beskriver **appen**, inte Cloudflares, nätoperatörers eller backupers behandling av uppgifter.
+Databasen innehåller `id`, `name`, `body`, `created_at`, `approved` och `published_at`. Appens gränssnitt har inga analysbibliotek eller externa frontendresurser. Den frivilliga musikknappen laddar däremot en extern YouTube-spelare efter ett uttryckligt klick. Åtkomstloggning är avstängd i appen och Docker-loggdrivern är `none`. Det beskriver **appen**, inte Cloudflares, nätoperatörers eller backupers behandling av uppgifter.
+
+## Publicering i 30 dagar och adminarkiv
+
+Varje godkännande ger en hemlis 30 dagars synlighet från publiceringstidpunkten i `published_at`. Vid exakt 30 dygn filtreras den bort från det publika API:t, även utan ett separat schemalagt jobb. Uppgiften raderas inte: admin kan öppna **Arkiv / återpublicera** och klicka på **Återpublicera · 30 dagar**. Bara ett uttryckligt adminanrop kan starta en ny 30-dagarsperiod. Att öppna arkivet eller försöka återpublicera en redan aktiv post förlänger inte tiden. Originalets `created_at`, alias och text ändras aldrig av detta. Gamla kopior eller skärmbilder kan inte återkallas.
+
+Vid första uppgraderingen läggs den nullable kolumnen `published_at` till i en transaktion. Den tidigare versionen sparade inget godkännandedatum. Befintliga godkända poster använder därför sitt kända originaldatum som utgångspunkt; poster som redan är minst 30 dagar gamla hamnar direkt i arkivet. Väntande poster ligger kvar för granskning. Migreringen kör inte om denna tilldelning vid senare uppstarter och ingen post raderas av utgångsregeln.
+
+Arkivet är endast för admin och kan bläddras i sidor med högst 500 poster. `GET /api/archive` och `POST /api/moderate` med `action=republish` kräver admin; samma Origin-kontroll gäller för återpublicering som för annan moderering.
 
 ## Testa lokalt med syntetiska uppgifter
 
 Python 3.12, inga Python-paket krävs:
 
 ```sh
-python3 -m unittest -v test_handlers.py test_flow.py test_music.py
+python3 -m unittest -v test_handlers.py test_flow.py test_music.py test_archive.py
 ```
 
 Testerna använder tillfälliga databaser och egna, uttryckligen syntetiska testlösenord. HTTP-testet startar en separat server på port 18947 och stänger den när testet är klart. Kör testerna i en isolerad utvecklingsmiljö. Ange aldrig en produktionsdatabas som testdata.

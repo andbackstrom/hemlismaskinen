@@ -13,8 +13,9 @@ Start with [SECURITY.md](../SECURITY.md). Inspect the current behavior before pr
 | `GET /api/music` | Reader/admin | Random imported liked YouTube video with bounded title/channel metadata; never returns the full private capture. |
 | `GET /api/secrets` | Reader/admin | Up to 500 approved posts, newest original date first. |
 | `POST /api/secrets` | Reader/admin | Creates pending content with a random ID and server-generated UTC date. |
+| `GET /api/archive` | Admin | Expired approved posts, with validated offset pagination (500 per page). |
 | `GET /api/pending` | Admin | Up to 500 pending posts. |
-| `POST /api/moderate` | Admin | `approve` updates the pending status; `reject` deletes a pending row. |
+| `POST /api/moderate` | Admin | `approve` publishes a pending row for 30 days; `reject` deletes a pending row; `republish` starts a fresh 30-day window only for expired approved rows. Original text, alias and submission time remain intact. |
 
 POST requests require an exact Origin match and a JSON object. The declared request size is bounded at 12,000 bytes; secret text is 1–2,000 characters and alias is at most 40 characters. Examine how these checks behave for malformed or incomplete input; the limits do not bound connection time, concurrency, or total storage.
 
@@ -32,3 +33,5 @@ Compare the intended privacy claims with the actual session cookie and proxy beh
 Document both the expected and observed result, the exact commit, and a minimal synthetic reproduction. Suggested fixes can be proposed independently; this repository is not a claim that those fixes have already shipped.
 
 For pause music, verify that opening or logging into the page makes no third-party requests. Clicking the music button may create one iframe from `youtube-nocookie.com`; verify that closing it or logging out removes it. Only valid 11-character video IDs with `list=LM` evidence are selected. Missing or malformed sources must return 503, without revealing paths. The source file is private runtime data and must not be committed. The loading animation is decorative and does not establish an anonymity, encryption or erasure guarantee; reduced-motion users skip it.
+
+Expiry review: check the exact 30-day boundary, delayed approval of an old submission, preservation of original fields, malformed/null publication dates failing closed, role/Origin denial for republishing, stale/double clicks returning 409, migration from the old five-column schema, idempotent startup and archive pagination. The glowing loading phrases are static fiction; they never expose submitted content. Normal animation duration is three seconds, with skip and reduced-motion exceptions.
