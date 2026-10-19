@@ -16,14 +16,14 @@ Appens Python- och HTML-filer ska motsvara den driftsatta versionen; kontrollsum
 
 Besökare låser upp boardet med ett gemensamt lösenord. Text och valfritt alias skickas till en modereringskö. Admin för kontot `andreas` kan godkänna eller rata en väntande post. Godkännande bevarar inskickningsdatum, alias och text. Inga besökarkonton eller avsändar-ID:n kopplas till posterna.
 
-Databasen innehåller `id`, `name`, `body`, `created_at` och `approved`. Appen har inga analysbibliotek eller externa frontendresurser. Åtkomstloggning är avstängd i appen och Docker-loggdrivern är `none`. Det beskriver **appen**, inte Cloudflares, nätoperatörers eller backupers behandling av uppgifter.
+Databasen innehåller `id`, `name`, `body`, `created_at` och `approved`. Appens gränssnitt har inga analysbibliotek eller externa frontendresurser. Den frivilliga musikknappen laddar däremot en extern YouTube-spelare efter ett uttryckligt klick. Åtkomstloggning är avstängd i appen och Docker-loggdrivern är `none`. Det beskriver **appen**, inte Cloudflares, nätoperatörers eller backupers behandling av uppgifter.
 
 ## Testa lokalt med syntetiska uppgifter
 
 Python 3.12, inga Python-paket krävs:
 
 ```sh
-python3 -m unittest -v test_handlers.py test_flow.py
+python3 -m unittest -v test_handlers.py test_flow.py test_music.py
 ```
 
 Testerna använder tillfälliga databaser och egna, uttryckligen syntetiska testlösenord. HTTP-testet startar en separat server på port 18947 och stänger den när testet är klart. Kör testerna i en isolerad utvecklingsmiljö. Ange aldrig en produktionsdatabas som testdata.
@@ -48,6 +48,16 @@ docker compose up -d
 Generatorn avbryter om `.env` redan finns. Lösenorden finns sedan endast i din lokala miljöfil. Den medföljande Compose-profilen använder `https://hemlis.andreas.quest` som förväntat `Origin`; byt till din egen HTTPS-adress om du driver en separat instans. Appen har själv ingen TLS-server. En betrodd proxy eller tunnel behöver hantera HTTPS och kunna nå containerport 8080. Hostport 18843 är bunden till loopback; en tunnelcontainer delar inte värdens loopback.
 
 För en lokal HTTP-instans kan `ORIGIN`, `COOKIE_SECURE=0`, `DATA_DIR` och `PORT` anges via miljön när `server.py` startas direkt. Använd endast syntetiska uppgifter i den miljön; sätt tillbaka säkra kakor för HTTPS. Den direkta Python-servern binder till alla nätverksgränssnitt, så isolera utvecklingsmiljön.
+
+## Pausmusik från Musikhjärnan
+
+Efter inloggning kan besökaren slumpa en låt från Musikhjärnans importerade YouTube-lista ”Musik jag gillar”. Ingen spelare, förhandsanslutning eller kontakt med YouTube görs innan besökaren trycker på knappen. Spelaren startas med YouTubes egna play-knapp. Ny lottning byter video; ”Stäng spelaren” tar bort inbäddningen.
+
+`MUSIC_SOURCE_FILE` i den privata `.env` pekar på Musikhjärnans `youtube-seed.json` på värden. Compose monterar bara den filen skrivskyddad, aldrig Musikhjärnans konfiguration, databas eller kontouppgifter. Appens `MUSIC_CATALOG_PATH` anger filens sökväg inne i containern. Om filen är otillgänglig eller saknar giltiga favoriter returneras ett faktiskt fel; inga låtar hittas på som reserv.
+
+Formatet är ett JSON-objekt med `tracks`, där varje post har en `links`-lista med `href` och `name`. Endast giltiga YouTube-video-ID:n i `watch?v=...&list=LM` används. Kanalnamn visas som källans namnuppgifter, inte som en verifierad artistkoppling. Uppdatering av den importerade källfilen syns vid nästa lottning. Urvalet är en importerad favoritlista, inte en direktkoppling till användarens aktuella YouTube-konto. `music.example.json` är medvetet tom; riktiga favoritlistor publiceras inte i repot.
+
+YouTube får anslutningsuppgifter som IP-adress och webbplatsens origin när spelaren laddas. Iframen använder privacy-enhanced-domänen `youtube-nocookie.com`, vilket inte är någon garanti om anonymitet. Lösenord, posttexter och alias skickas inte till den. Cookies och lagring hos YouTube följer dess egna villkor. Vissa videor tillåter inte inbäddning; det finns en länk till YouTube Music som alternativ.
 
 ## Vad repot inte innehåller
 

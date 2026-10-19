@@ -10,6 +10,7 @@ Start with [SECURITY.md](../SECURITY.md). Inspect the current behavior before pr
 | `GET /api/session` | Optional | Validated role or null. |
 | `POST /api/login` | Password | Board password gives reader; username `andreas` selects the separate admin password. |
 | `POST /api/logout` | None | Clears the browser cookie; does not revoke a copied cookie. |
+| `GET /api/music` | Reader/admin | Random imported liked YouTube video with bounded title/channel metadata; never returns the full private capture. |
 | `GET /api/secrets` | Reader/admin | Up to 500 approved posts, newest original date first. |
 | `POST /api/secrets` | Reader/admin | Creates pending content with a random ID and server-generated UTC date. |
 | `GET /api/pending` | Admin | Up to 500 pending posts. |
@@ -29,3 +30,5 @@ POST requests require an exact Origin match and a JSON object. The declared requ
 Compare the intended privacy claims with the actual session cookie and proxy behavior. Review role forgery, cookie expiry and revocation, XSS rendering, cross-origin writes, input edge cases, moderation state transitions, SQLite remanence and error paths. Investigate brute force, thread/connection exhaustion, slow bodies, write amplification, and storage growth only in an isolated environment.
 
 Document both the expected and observed result, the exact commit, and a minimal synthetic reproduction. Suggested fixes can be proposed independently; this repository is not a claim that those fixes have already shipped.
+
+For pause music, verify that opening or logging into the page makes no third-party requests. Clicking the music button may create one iframe from `youtube-nocookie.com`; verify that closing it or logging out removes it. Only valid 11-character video IDs with `list=LM` evidence are selected. Missing or malformed sources must return 503, without revealing paths. The source file is private runtime data and must not be committed. The loading animation is decorative and does not establish an anonymity, encryption or erasure guarantee; reduced-motion users skip it.

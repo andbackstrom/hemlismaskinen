@@ -1,6 +1,6 @@
-# Source snapshot and verification
+# Source snapshots and verification
 
-Prepared for external review on 2026-10-19 (Europe/Stockholm).
+Initial import prepared for external review on 2026-10-19 (Europe/Stockholm).
 
 This repository imports `server.py`, `index.html`, `compose.yaml`, and the existing tests from the workspace used to deploy HEMLISMASKINEN. Application files are copied without functional changes. Review documentation and CI are new; they do not modify the running service. No automatic deployment is configured.
 
@@ -22,3 +22,17 @@ The HTML returned by the live service over HTTPS was fetched and its SHA-256 mat
 - The import was checked for the known runtime password strings, selected deployment identifiers, credential/token patterns and unexpected data/key files. This focused check is not an exhaustive secret-scanning certification.
 
 The repository's CI results, if available, are a separate verification result. A successful test run is not a security audit. See [SECURITY.md](../SECURITY.md) for known limitations and the boundaries of the review.
+
+## Terminal loading and optional music revision
+
+The revision following the initial import changes the administrator login copy, adds a brief reduced-motion-aware terminal animation, and adds opt-in YouTube playback sourced from Musikhjärnan's private imported Likes capture. The source capture itself is not part of Git. The implementation and checks are reviewable in the corresponding feature pull request.
+
+| File | SHA-256 for this revision |
+| --- | --- |
+| `server.py` | `d4ea85c5ecd040a9807186c8944f4b707e29719ce3747420b26b721258eda6a4` |
+| `index.html` | `400957ff16ff3100515f8741c45f9e4e73713137887a6114f76cbfd0ed378b4c` |
+| `compose.yaml` | `b49284c4480393724396e6eb8ed994c1bffb8030b973a0424f037f8d91fcd75f` |
+
+Local verification: all five Python tests passed. JavaScript syntax was checked with Node. An isolated DOM simulation checked admin copy, initial/login animation and skip, reduced motion, no external player request before opt-in, safe track metadata rendering, and iframe removal on stop/logout. This is not a full-browser rendering or real YouTube playback test; playback availability and third-party restrictions depend on YouTube and the browser.
+
+Deployment is separate from source publication. The initial checksums above are historical, not the current checksums after applying this feature.
